@@ -7,7 +7,3 @@ NLP Semester 2 Project — Implementing classic subword tokenization algorithms.
 - `02_wordpiece.ipynb` — WordPiece trainer and tokenizer  
 - `03_experiments.ipynb` — evaluation and comparison
 
-## Team
-- Ibrar — algorithmic code
-- Dayo — experiments and analysis
-- Lama — report and presentation

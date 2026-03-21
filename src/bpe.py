@@ -5,6 +5,11 @@ Reference: Sennrich et al. (2016)
 Two implementations:
   train()      — naive version (simple, educational, slow)
   train_fast() — optimized version (priority queue + inverse index)
+
+Tie-breaking strategy:
+  When multiple pairs share the same frequency, we break ties
+  lexicographically (alphabetical order of the pair).
+  This ensures naive and fast produce identical merge rules.
 """
 from collections import defaultdict
 import heapq
@@ -28,11 +33,13 @@ def tokenize_word(word, merge_rules):
     """
     Tokenize a single word by replaying merge rules in order.
 
-    This is identical for both naive and fast BPE —
-    the tokenizer only needs the final merge_rules list.
-
     Ambiguity resolution: rule ORDER resolves all ambiguity.
-    Earlier rules always take priority.
+    Earlier rules always take priority over later ones.
+
+    Example with rules [("u","g"), ("h","ug")]:
+        "hug" → ["h","u","g"]   (start)
+              → ["h","ug"]      (apply rule 1)
+              → ["hug"]         (apply rule 2)
     """
     tokens = list(word)
     for (a, b) in merge_rules:
@@ -83,7 +90,6 @@ def load(merge_rules_path, vocab_path):
 
 # ============================================================
 # NAIVE BPE TRAINER
-# Simple to understand — rescans full vocab every step
 # ============================================================
 
 def _get_pair_counts(vocab):
@@ -119,27 +125,17 @@ def train(word_freq, vocab_size, verbose=True):
     """
     NAIVE BPE Training.
 
-    How it works:
-    1. Split every word into characters
-    2. Count all adjacent pairs across corpus
-    3. Merge the most frequent pair
-    4. Repeat from step 2
+    Bottleneck: rescans ALL pairs every merge step.
+    Time complexity: O(V × N)
 
-    Bottleneck: step 2 rescans the ENTIRE vocabulary every iteration.
-    Time complexity: O(V × N) where V = vocab size, N = num merges
+    Tie-breaking: lexicographic on (frequency, pair[0], pair[1])
+    guarantees identical output to train_fast().
 
-    Args:
-        word_freq:  {word: frequency}
-        vocab_size: target vocabulary size
-        verbose:    print progress
-
-    Returns:
-        vocab, merge_rules, bpe_vocab
+    Returns: vocab, merge_rules, bpe_vocab
     """
     start_time = time.time()
     vocab = get_vocab(word_freq)
 
-    # Build initial character vocabulary
     bpe_vocab = set()
     for word_tokens in vocab.keys():
         for token in word_tokens:
@@ -154,13 +150,19 @@ def train(word_freq, vocab_size, verbose=True):
               f"Target: {vocab_size} | Merges: {num_merges}")
 
     for step in range(num_merges):
-        # ← THIS is the bottleneck: full rescan every step
         pair_counts = _get_pair_counts(vocab)
 
         if not pair_counts:
             break
 
-        best_pair  = max(pair_counts, key=pair_counts.get)
+        # ── Deterministic tie-breaking ──
+        # Primary:   highest frequency
+        # Secondary: alphabetical order of pair[0]
+        # Tertiary:  alphabetical order of pair[1]
+        best_pair = max(
+            pair_counts,
+            key=lambda p: (pair_counts[p], p[0], p[1])
+        )
         best_count = pair_counts[best_pair]
 
         if best_count < 2:
@@ -189,80 +191,30 @@ def train(word_freq, vocab_size, verbose=True):
 
 # ============================================================
 # FAST BPE TRAINER
-# Uses priority queue + inverse index for efficiency
+# Uses priority queue + inverse index
 # ============================================================
-
-def _build_inverse_index(vocab):
-    """
-    Build inverse index: pair → set of words containing that pair.
-
-    This is the key data structure for fast BPE.
-    Instead of scanning ALL words to find where a pair appears,
-    we can look it up directly in O(1).
-
-    Example:
-        vocab has words: ("h","u","g"), ("p","u","g"), ("b","u","g")
-        inverse_index[("u","g")] = {
-            ("h","u","g"), ("p","u","g"), ("b","u","g")
-        }
-    """
-    inverse_index = defaultdict(set)
-    for word_tokens in vocab.keys():
-        for i in range(len(word_tokens) - 1):
-            pair = (word_tokens[i], word_tokens[i + 1])
-            inverse_index[pair].add(word_tokens)
-    return inverse_index
-
-
-def _get_pair_counts_for_words(words, vocab):
-    """
-    Count pairs only for a specific set of words.
-    Used to update counts after a merge — only recount affected words.
-    """
-    pair_counts = defaultdict(int)
-    for word_tokens in words:
-        freq = vocab.get(word_tokens, 0)
-        for i in range(len(word_tokens) - 1):
-            pair_counts[(word_tokens[i], word_tokens[i + 1])] += freq
-    return pair_counts
-
 
 def train_fast(word_freq, vocab_size, verbose=True):
     """
     FAST BPE Training using Priority Queue + Inverse Index.
 
-    Key optimizations over naive:
+    Key optimizations:
+    1. PRIORITY QUEUE: best pair in O(log n) not O(n)
+    2. INVERSE INDEX: only update affected words after merge
+    3. LAZY DELETION: skip stale heap entries instead of removing
 
-    1. PRIORITY QUEUE (max-heap):
-       Always get the best pair in O(log n)
-       instead of scanning all pairs in O(n)
-
-    2. INVERSE INDEX:
-       pair → {words containing this pair}
-       After a merge, only recount pairs in AFFECTED words
-       instead of rescanning the entire vocabulary
-
-    3. LAZY DELETION:
-       Instead of removing stale entries from the heap
-       (expensive), we mark them as invalid and skip them
-       when we pop them off the heap.
+    Tie-breaking: heap entries are (-count, pair[0], pair[1])
+    so pairs with equal frequency are ordered alphabetically.
+    This matches the naive implementation exactly.
 
     Time complexity: O(M × W × L)
-    Where M = merges, W = avg words per pair, L = avg word length
-    Much faster than naive O(M × V) in practice.
+    M = merges, W = avg words per pair, L = avg word length
 
-    Args:
-        word_freq:  {word: frequency}
-        vocab_size: target vocabulary size
-        verbose:    print progress
-
-    Returns:
-        vocab, merge_rules, bpe_vocab
+    Returns: vocab, merge_rules, bpe_vocab
     """
     start_time = time.time()
     vocab = get_vocab(word_freq)
 
-    # Build initial character vocabulary
     bpe_vocab = set()
     for word_tokens in vocab.keys():
         for token in word_tokens:
@@ -276,40 +228,42 @@ def train_fast(word_freq, vocab_size, verbose=True):
         print(f"[FAST BPE] Initial vocab: {initial_size} | "
               f"Target: {vocab_size} | Merges: {num_merges}")
 
-    # ── Step 1: Count all pairs once ──
-    pair_counts   = defaultdict(int)
+    # ── Step 1: Count all pairs ──
+    pair_counts = defaultdict(int)
     for word_tokens, freq in vocab.items():
         for i in range(len(word_tokens) - 1):
             pair_counts[(word_tokens[i], word_tokens[i + 1])] += freq
 
     # ── Step 2: Build inverse index ──
-    inverse_index = _build_inverse_index(vocab)
+    inverse_index = defaultdict(set)
+    for word_tokens in vocab.keys():
+        for i in range(len(word_tokens) - 1):
+            pair = (word_tokens[i], word_tokens[i + 1])
+            inverse_index[pair].add(word_tokens)
 
     # ── Step 3: Build max-heap ──
-    # Python's heapq is a MIN-heap, so we negate counts
-    # Entry format: (-count, pair)
-    # We use a dict to track the "current valid count" for each pair
-    # This enables lazy deletion of stale heap entries
+    # Entry: (-count, pair[0], pair[1])
+    # Negated count → max-heap via Python's min-heap
+    # pair[0], pair[1] → deterministic tie-breaking
     heap = []
     for pair, count in pair_counts.items():
-        heapq.heappush(heap, (-count, pair))
+        heapq.heappush(heap, (-count, pair[0], pair[1]))
 
-    # ── Main training loop ──
+    # ── Main loop ──
     for step in range(num_merges):
 
-        # Find the best valid pair using lazy deletion
+        # Find best valid pair using lazy deletion
         best_pair  = None
         best_count = 0
 
         while heap:
-            neg_count, pair = heapq.heappop(heap)
-            current_count   = pair_counts.get(pair, 0)
+            neg_count, p0, p1 = heapq.heappop(heap)
+            pair          = (p0, p1)
+            current_count = pair_counts.get(pair, 0)
 
-            # Lazy deletion: skip if this entry is stale
-            # (the count in the heap no longer matches reality)
+            # Skip stale entries
             if -neg_count != current_count:
                 continue
-
             if current_count < 2:
                 break
 
@@ -320,16 +274,14 @@ def train_fast(word_freq, vocab_size, verbose=True):
         if best_pair is None:
             break
 
-        # Create new merged token
         new_token = best_pair[0] + best_pair[1]
         merge_rules.append(best_pair)
         bpe_vocab.add(new_token)
 
-        # ── Step 4: Find only affected words ──
+        # ── Find affected words ──
         affected_words = inverse_index.get(best_pair, set()).copy()
 
-        # ── Step 5: Update counts for affected words only ──
-        # Remove old pair counts for affected words
+        # ── Remove old counts for affected words ──
         for word_tokens in affected_words:
             old_freq = vocab.get(word_tokens, 0)
             for i in range(len(word_tokens) - 1):
@@ -337,12 +289,11 @@ def train_fast(word_freq, vocab_size, verbose=True):
                 pair_counts[old_pair] -= old_freq
                 if pair_counts[old_pair] <= 0:
                     del pair_counts[old_pair]
-            # Also update inverse index
             for i in range(len(word_tokens) - 1):
                 old_pair = (word_tokens[i], word_tokens[i + 1])
                 inverse_index[old_pair].discard(word_tokens)
 
-        # ── Step 6: Apply merge to affected words only ──
+        # ── Apply merge to affected words ──
         a, b = best_pair
         new_vocab_entries = {}
         for word_tokens in affected_words:
@@ -358,11 +309,10 @@ def train_fast(word_freq, vocab_size, verbose=True):
                     new_tokens.append(word_tokens[i])
                     i += 1
             new_key = tuple(new_tokens)
-            # Accumulate in case multiple old forms map to same new form
             new_vocab_entries[new_key] = \
                 new_vocab_entries.get(new_key, 0) + freq
 
-        # ── Step 7: Add new entries, update counts + index ──
+        # ── Add new entries, update counts + index ──
         for new_key, freq in new_vocab_entries.items():
             vocab[new_key] = vocab.get(new_key, 0) + freq
             for i in range(len(new_key) - 1):
@@ -370,8 +320,11 @@ def train_fast(word_freq, vocab_size, verbose=True):
                 pair_counts[new_pair] = \
                     pair_counts.get(new_pair, 0) + freq
                 inverse_index[new_pair].add(new_key)
-                # Push updated count to heap
-                heapq.heappush(heap, (-pair_counts[new_pair], new_pair))
+                # Push with tie-breaking
+                heapq.heappush(
+                    heap,
+                    (-pair_counts[new_pair], new_pair[0], new_pair[1])
+                )
 
         if verbose and (step + 1) % 200 == 0:
             elapsed = time.time() - start_time

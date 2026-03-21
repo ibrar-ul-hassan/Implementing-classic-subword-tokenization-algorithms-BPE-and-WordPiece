@@ -159,11 +159,12 @@ def train(word_freq, vocab_size, verbose=True):
         # Primary:   highest frequency
         # Secondary: alphabetical order of pair[0]
         # Tertiary:  alphabetical order of pair[1]
-        best_pair = max(
-            pair_counts,
-            key=lambda p: (pair_counts[p], p[0], p[1])
-        )
-        best_count = pair_counts[best_pair]
+        # Find the highest count
+        best_count = max(pair_counts.values())
+        # Among ALL pairs with that count, pick lexicographically SMALLEST
+        # This matches the heap behaviour in train_fast()
+        candidates = [p for p, c in pair_counts.items() if c == best_count]
+        best_pair  = min(candidates)
 
         if best_count < 2:
             break

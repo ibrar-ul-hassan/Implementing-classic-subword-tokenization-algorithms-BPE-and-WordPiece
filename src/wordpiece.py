@@ -5,6 +5,11 @@ Reference: Schuster & Nakajima (2012), used in BERT
 Two implementations:
   train()      — naive version (simple, educational, slow)
   train_fast() — optimized version (inverse index + score caching)
+
+Tie-breaking strategy:
+  When multiple pairs share the same score, we break ties
+  lexicographically (alphabetical order of the pair).
+  This ensures naive and fast produce identical vocabularies.
 """
 from collections import defaultdict
 import heapq
@@ -25,6 +30,15 @@ def tokenize_word(word, wp_vocab):
 
     Ambiguity resolution: greedy longest match from left to right.
     Always picks the longest possible token at each position.
+    If no match found at any position → entire word = [UNK].
+
+    Example (vocab has "spiel", "##en"):
+        "spielen"
+        → try "spielen" → not in vocab
+        → try "spiele"  → not in vocab
+        → try "spiel"   → ✅ found, remaining = "en"
+        → try "##en"    → ✅ found
+        → result: ["spiel", "##en"]
     """
     tokens    = []
     remaining = word
@@ -140,8 +154,11 @@ def train(word_freq, vocab_size, verbose=True):
     """
     NAIVE WordPiece Training.
 
-    Bottleneck: recomputes ALL pair scores from scratch every step.
+    Bottleneck: recomputes ALL scores from scratch every step.
     Time complexity: O(V × N)
+
+    Tie-breaking: lexicographic on (score, pair[0], pair[1])
+    guarantees identical output to train_fast().
 
     Returns: vocab, wp_vocab, merge_log
     """
@@ -166,12 +183,18 @@ def train(word_freq, vocab_size, verbose=True):
               f"Target: {vocab_size} | Merges: {num_merges}")
 
     for step in range(num_merges):
-        # ← Bottleneck: full score recomputation every step
         scores = _compute_pair_scores(vocab)
         if not scores:
             break
 
-        best_pair  = max(scores, key=scores.get)
+        # ── Deterministic tie-breaking ──
+        # Primary:   highest score
+        # Secondary: alphabetical order of pair[0]
+        # Tertiary:  alphabetical order of pair[1]
+        best_pair = max(
+            scores,
+            key=lambda p: (scores[p], p[0], p[1])
+        )
         best_score = scores[best_pair]
         a, b       = best_pair
         merged     = a + b[2:] if b.startswith("##") else a + b
@@ -206,25 +229,18 @@ def train_fast(word_freq, vocab_size, verbose=True):
     FAST WordPiece Training.
 
     Key optimizations:
+    1. INVERSE INDEX: only recount scores for affected words
+    2. INCREMENTAL letter_freqs: update only changed tokens
+    3. PRIORITY QUEUE with lazy deletion: O(log n) best pair access
 
-    1. INVERSE INDEX:
-       pair → {words containing that pair}
-       Only recompute scores for pairs in AFFECTED words.
+    Tie-breaking: heap entries are (-score, pair[0], pair[1])
+    so pairs with equal scores are ordered alphabetically.
+    This matches the naive implementation exactly.
 
-    2. INCREMENTAL LETTER FREQUENCIES:
-       Maintain letter_freqs as a running dict.
-       Update only the tokens that changed after each merge.
-       This avoids recomputing letter frequencies from scratch.
-
-    3. PRIORITY QUEUE with lazy deletion:
-       Always access highest-score pair in O(log n).
-       Stale entries skipped via lazy deletion.
-
-    Note on WordPiece scores:
-       Scores depend on letter_freqs which change after every merge.
-       This means scores can become stale in the heap.
-       We use lazy deletion — when we pop a pair, we recompute
-       its current score and check if it's still valid.
+    Note on score staleness:
+    Scores depend on letter_freqs which change after every merge.
+    We handle this via lazy deletion — recompute score on pop
+    and skip if it no longer matches the heap entry.
 
     Returns: vocab, wp_vocab, merge_log
     """
@@ -248,7 +264,7 @@ def train_fast(word_freq, vocab_size, verbose=True):
         print(f"[FAST WP] Initial vocab: {initial_size} | "
               f"Target: {vocab_size} | Merges: {num_merges}")
 
-    # ── Step 1: Build letter frequencies ──
+    # ── Step 1: Build letter + pair frequencies ──
     letter_freqs = defaultdict(int)
     pair_freqs   = defaultdict(int)
 
@@ -269,32 +285,36 @@ def train_fast(word_freq, vocab_size, verbose=True):
             pair = (word_tokens[i], word_tokens[i + 1])
             inverse_index[pair].add(word_tokens)
 
-    # ── Step 3: Compute initial scores + build heap ──
+    # ── Step 3: Score function + initial heap ──
     def score(pair):
         pa = letter_freqs.get(pair[0], 0)
         pb = letter_freqs.get(pair[1], 0)
         if pa == 0 or pb == 0:
-            return 0
+            return 0.0
         return pair_freqs.get(pair, 0) / (pa * pb)
 
+    # Entry: (-score, pair[0], pair[1])
+    # Negated score → max-heap via Python's min-heap
+    # pair[0], pair[1] → deterministic tie-breaking
     heap = []
     for pair in pair_freqs:
         s = score(pair)
         if s > 0:
-            heapq.heappush(heap, (-s, pair))
+            heapq.heappush(heap, (-s, pair[0], pair[1]))
 
-    # ── Main training loop ──
+    # ── Main loop ──
     for step in range(num_merges):
 
-        # Find best valid pair (lazy deletion)
+        # Find best valid pair using lazy deletion
         best_pair  = None
-        best_score = 0
+        best_score = 0.0
 
         while heap:
-            neg_s, pair       = heapq.heappop(heap)
-            current_score     = score(pair)
+            neg_s, p0, p1 = heapq.heappop(heap)
+            pair          = (p0, p1)
+            current_score = score(pair)
 
-            # Skip stale entries where score has changed
+            # Skip stale entries
             if abs(-neg_s - current_score) > 1e-10:
                 continue
             if current_score <= 0:
@@ -315,7 +335,7 @@ def train_fast(word_freq, vocab_size, verbose=True):
         # ── Find affected words ──
         affected_words = inverse_index.get(best_pair, set()).copy()
 
-        # ── Remove old contributions from affected words ──
+        # ── Remove old contributions ──
         for word_tokens in affected_words:
             freq = vocab.get(word_tokens, 0)
             if len(word_tokens) == 1:
@@ -330,7 +350,7 @@ def train_fast(word_freq, vocab_size, verbose=True):
                 inverse_index[pair_i].discard(word_tokens)
             letter_freqs[word_tokens[-1]] -= freq
 
-        # ── Apply merge to affected words ──
+        # ── Apply merge ──
         new_entries = {}
         for word_tokens in affected_words:
             freq = vocab.pop(word_tokens, 0)
@@ -358,10 +378,13 @@ def train_fast(word_freq, vocab_size, verbose=True):
                 letter_freqs[new_key[i]] += freq
                 pair_freqs[pair_i]       += freq
                 inverse_index[pair_i].add(new_key)
-                # Push new score to heap
                 s = score(pair_i)
                 if s > 0:
-                    heapq.heappush(heap, (-s, pair_i))
+                    # Push with tie-breaking
+                    heapq.heappush(
+                        heap,
+                        (-s, pair_i[0], pair_i[1])
+                    )
             letter_freqs[new_key[-1]] += freq
 
         if verbose and (step + 1) % 200 == 0:

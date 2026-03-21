@@ -191,10 +191,14 @@ def train(word_freq, vocab_size, verbose=True):
         # Primary:   highest score
         # Secondary: alphabetical order of pair[0]
         # Tertiary:  alphabetical order of pair[1]
-        best_pair = max(
-            scores,
-            key=lambda p: (scores[p], p[0], p[1])
-        )
+        # Find the highest score
+        best_score = max(scores.values())
+        # Among ALL pairs with that score, pick lexicographically SMALLEST
+        # This matches the heap behaviour in train_fast()
+        # Round to 10 decimal places to avoid float precision mismatches
+        candidates = [p for p, s in scores.items()
+                      if round(s, 10) == round(best_score, 10)]
+        best_pair  = min(candidates)
         best_score = scores[best_pair]
         a, b       = best_pair
         merged     = a + b[2:] if b.startswith("##") else a + b

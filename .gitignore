@@ -1,4 +1,5 @@
-data/
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
+corpus_clean.txt
+word_frequencies.json

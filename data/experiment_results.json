@@ -1,0 +1,35 @@
+{
+  "vocab_sizes_tested": [
+    1000,
+    5000,
+    10000
+  ],
+  "length_results": {
+    "1000": {
+      "bpe_avg": 15.8,
+      "wp_avg": 45.8,
+      "bpe_time": 11.670127630233765,
+      "wp_time": 4.788958311080933
+    },
+    "5000": {
+      "bpe_avg": 10.0,
+      "wp_avg": 30.4,
+      "bpe_time": 16.054482460021973,
+      "wp_time": 9.200809955596924
+    },
+    "10000": {
+      "bpe_avg": 9.2,
+      "wp_avg": 19.6,
+      "bpe_time": 17.805025577545166,
+      "wp_time": 7.377553462982178
+    }
+  },
+  "morphological_evaluation": {
+    "vocab_size": 10000,
+    "bpe_exact": 4,
+    "wp_exact": 1,
+    "bpe_morph_score": 0.908,
+    "wp_morph_score": 0.483,
+    "n_test_cases": 20
+  }
+}

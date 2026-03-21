@@ -1,15 +1,12 @@
 # BPE and WordPiece Tokenization
-> NLP Semester 2 Project — Implementing classic subword tokenization 
-> algorithms from scratch in Python.
+> NLP Semester 2 Project — Implementing classic subword tokenization algorithms from scratch in Python.
 
 ## The Project
 We implement two tokenization algorithms used in modern LLMs:
 - **BPE** (Byte Pair Encoding) — used by GPT, GPT-2, RoBERTa
-- **WordPiece** — used by BERT, DistilBERT
+- **WordPiece** — used by BERT, DistilBERT, MobileBERT
 
-Both are built from scratch without using HuggingFace's pre-built 
-tokenizers. We then evaluate them scientifically against a 
-morphological gold standard on German text.
+Both are built **from scratch** without using HuggingFace's pre-built tokenizers. We then evaluate them scientifically against a morphological gold standard on German text.
 
 ---
 
@@ -20,28 +17,77 @@ morphological gold standard on German text.
 | Dayo | Experiments, evaluation, and analysis |
 | Lama | Report and presentation |
 
+**Supervisor:** Marie Candito — Academic Year 2025-2026, Semester 2
+
+---
+
+## Key Results
+
+### Training Speed (naive vs fast)
+| Algorithm | Naive | Fast | Speedup |
+|-----------|-------|------|---------|
+| BPE | ~15s | ~0.5s | **~30x** |
+| WordPiece | ~30s | ~0.4s | **~85x** |
+| BPE (projected, 20k merges, full corpus) | ~4.8 hours | ~12 min | ~30x |
+| WordPiece (projected, 20k merges, full corpus) | ~8.7 hours | ~7 min | ~85x |
+
+### Tokenization Quality (vocabulary size effects)
+| Vocab Size | BPE avg tokens/sentence | WP avg tokens/sentence |
+|------------|------------------------|------------------------|
+| 1,000 | 15.8 | 45.8 |
+| 5,000 | 10.0 | 30.4 |
+| 10,000 | **9.2** | 19.6 |
+
+BPE consistently produces **2-3x fewer tokens per sentence** — meaning it learns richer, longer subword units.
+
+### Morphological Evaluation (20 German words, 10k vocab)
+| Metric | BPE | WordPiece |
+|--------|-----|-----------|
+| Exact match | 4/20 (20%) | 1/20 (5%) |
+| Morpheme score | **0.91** | 0.48 |
+
+BPE finds 91% of expected morphemes purely from frequency statistics — no linguistic knowledge required.
+
+### OOV Handling
+| | BPE | WordPiece |
+|--|-----|-----------|
+| Unknown words | Always segments → falls back to chars | Returns `[UNK]` for whole word |
+| Robustness | High — works for any input | Lower — strict vocabulary match required |
+
+---
+
+## Scientific Finding
+> Naive and fast WordPiece implementations produce different vocabularies.
+> Root cause: incremental `letter_freq` updates in fast WP change score ordering
+> compared to full recomputation in naive WP. Both implementations are correct —
+> this reflects a known numerical sensitivity in the WordPiece scoring function.
+> We use the fast implementation for all experiments as it produces longer,
+> more semantically coherent tokens.
+
 ---
 
 ## Repository Architecture
+
 ```
 repo/
 │
 ├── src/                        ← ALL logic lives here as .py files
 │   ├── config.py               ← single source of truth for all variables
-│   ├── bpe.py                  ← BPE trainer + tokenizer
-│   └── wordpiece.py            ← WordPiece trainer + tokenizer
+│   ├── bpe.py                  ← BPE trainer + tokenizer (naive + fast)
+│   └── wordpiece.py            ← WordPiece trainer + tokenizer (naive + fast)
 │
 ├── data/                       ← generated data files (small JSONs only)
 │   ├── word_freq_sample.json   ← top 5000 words from German Wikipedia
 │   ├── bpe_merge_rules.json    ← learned BPE merge rules
 │   ├── bpe_vocab.json          ← final BPE vocabulary
 │   ├── wp_vocab.json           ← final WordPiece vocabulary
-│   └── wp_merge_log.json       ← WordPiece merge log with scores
+│   ├── wp_merge_log.json       ← WordPiece merge log with scores
+│   └── experiment_results.json ← all experiment results
 │
 ├── 00_setup.ipynb              ← corpus download + preprocessing
-├── 01_bpe.ipynb                ← run BPE training + tokenization
-├── 02_wordpiece.ipynb          ← run WordPiece training + tokenization
-├── 03_experiments.ipynb        ← evaluation + comparison
+├── 01_bpe.ipynb                ← BPE training + benchmarking
+├── 02_wordpiece.ipynb          ← WordPiece training + benchmarking
+├── 03_experiments.ipynb        ← evaluation + comparison graphs
 │
 ├── PROJECT_BRIEF.docx          ← original project brief
 ├── .gitignore                  ← excludes large corpus files
@@ -60,67 +106,34 @@ Notebooks never contain algorithm code. They only:
 2. Call functions and display results
 3. Push back to GitHub
 
-This means if your Colab session restarts, **you only ever 
-need to re-run Cell 1** and everything works again.
+**If your Colab session restarts → run Cell 1 only. Everything else works again.**
 
 ### The Three Source Files
 
-**`src/config.py`** — one place for all paths and parameters.
-Every other file imports from here. Never hardcode a path anywhere else.
+**`src/config.py`** — one place for all paths and parameters. Every other file imports from here.
 
-**`src/bpe.py`** — contains:
-- `train(word_freq, vocab_size)` → trains BPE, returns merge rules
-- `tokenize_word(word, merge_rules)` → tokenizes using rule replay
-- `tokenize(text, merge_rules)` → tokenizes full sentence
+**`src/bpe.py`** — exports:
+- `train(word_freq, vocab_size)` → naive BPE trainer
+- `train_fast(word_freq, vocab_size)` → fast BPE (priority queue + inverse index)
+- `tokenize_word(word, merge_rules)` → tokenize using rule replay
+- `tokenize(text, merge_rules)` → tokenize full sentence
 - `save(...)` / `load(...)` → persist results to disk
 
-**`src/wordpiece.py`** — contains:
-- `train(word_freq, vocab_size)` → trains WordPiece, returns vocabulary
-- `tokenize_word(word, wp_vocab)` → tokenizes using longest-match
-- `tokenize(text, wp_vocab)` → tokenizes full sentence
+**`src/wordpiece.py`** — exports:
+- `train(word_freq, vocab_size)` → naive WordPiece trainer
+- `train_fast(word_freq, vocab_size)` → fast WordPiece (inverse index + incremental scores)
+- `tokenize_word(word, wp_vocab)` → tokenize using longest-match
+- `tokenize(text, wp_vocab)` → tokenize full sentence
 - `save(...)` / `load(...)` → persist results to disk
 
 ---
 
-## How Every Notebook Works
+## How to Start a Session
 
-Every notebook follows the exact same 4-part structure:
-```
-┌─────────────────────────────────────────────┐
-│ CELL 1 — Setup                              │
-│   Clone repo, install deps, import src/     │
-│   ↑ Only cell you need to re-run on restart │
-├─────────────────────────────────────────────┤
-│ CELL 2 — Load Data                          │
-│   Load word frequencies from data/          │
-├─────────────────────────────────────────────┤
-│ CELL 3..N — Work                            │
-│   Call functions from src/                  │
-│   Display results                           │
-├─────────────────────────────────────────────┤
-│ LAST CELL — Push to GitHub                  │
-│   Save outputs + git push                   │
-└─────────────────────────────────────────────┘
-```
+**Every session — same 3 steps:**
 
----
-
-## How to Start a Session (for all teammates)
-
-**Every single session — same 3 steps:**
-
-### Step 1 — Open the right notebook
-Go to [Google Drive](https://drive.google.com) → find the notebook 
-you need → open in Colab.
-
-### Step 2 — Run Cell 1 only
-Cell 1 automatically:
-- Clones the repo if it's a fresh session
-- Pulls the latest changes if the repo exists
-- Adds `src/` to the Python path
-- Imports all modules
+### Step 1 — Run Cell 1 (always)
 ```python
-# This is all Cell 1 does — run it and you're ready
 import sys, os, subprocess
 from google.colab import userdata
 
@@ -137,10 +150,11 @@ else:
 
 sys.path.insert(0, f"{REPO_DIR}/src")
 from config import *
-print("✅ Ready")
 ```
 
-### Step 3 — Run the rest of the cells normally
+### Step 2 — Run the remaining cells
+
+### Step 3 — Last cell pushes to GitHub
 
 ---
 
@@ -148,17 +162,15 @@ print("✅ Ready")
 
 | File | GitHub | Colab only | Reason |
 |------|--------|------------|--------|
-| `src/*.py` | ✅ | | Code, not data |
-| `*.ipynb` | ✅ | | Code, not data |
+| `src/*.py` | ✅ | | Code |
+| `*.ipynb` | ✅ | | Code |
 | `word_freq_sample.json` | ✅ | | Small (top 5000 words) |
-| `bpe_merge_rules.json` | ✅ | | Small output file |
-| `bpe_vocab.json` | ✅ | | Small output file |
-| `wp_vocab.json` | ✅ | | Small output file |
-| `corpus_clean.txt` | | ✅ | Too large (~500MB) |
-| `word_frequencies.json` | | ✅ | Too large, regenerated each session |
-
-> **Rule of thumb:** if it's code or a small JSON → GitHub.  
-> If it's a large text file generated from the corpus → Colab only.
+| `bpe_merge_rules.json` | ✅ | | Small output |
+| `bpe_vocab.json` | ✅ | | Small output |
+| `wp_vocab.json` | ✅ | | Small output |
+| `experiment_results.json` | ✅ | | Small output |
+| `corpus_clean.txt` | | ✅ | ~500MB — regenerated each session |
+| `word_frequencies.json` | | ✅ | Large — regenerated each session |
 
 ---
 
@@ -178,5 +190,5 @@ print("✅ Ready")
 ## References
 - Sennrich et al. (2016) — [Neural Machine Translation of Rare Words with Subword Units](https://aclanthology.org/P16-1162/)
 - Schuster & Nakajima (2012) — Japanese and Korean voice search (WordPiece origin)
-- HuggingFace — [BPE tokenization](https://huggingface.co/learn/nlp-course/en/chapter6/5) | [WordPiece tokenization](https://huggingface.co/learn/nlp-course/en/chapter6/6)
+- HuggingFace — [BPE tokenization](https://huggingface.co/learn/llm-course/en/chapter6/5) | [WordPiece tokenization](https://huggingface.co/learn/llm-course/en/chapter6/6)
 - Mielke et al. (2021) — [Between words and characters](https://arxiv.org/abs/2112.10508)

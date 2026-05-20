@@ -31,5 +31,103 @@
     "bpe_morph_score": 0.908,
     "wp_morph_score": 0.5,
     "n_test_cases": 20
+  },
+  "oov_evaluation": {
+    "supermarktverkäuferin": {
+      "bpe": [
+        "super",
+        "markt",
+        "ver",
+        "k",
+        "äufer",
+        "in"
+      ],
+      "bpe_count": 6,
+      "wp_count": 11
+    },
+    "dampfschifffahrtsgesellschaft": {
+      "bpe": [
+        "dampf",
+        "schif",
+        "ff",
+        "ahr",
+        "ts",
+        "gesellschaft"
+      ],
+      "bpe_count": 6,
+      "wp_count": 8
+    },
+    "donaudampfschifffahrt": {
+      "bpe": [
+        "donau",
+        "dampf",
+        "schifffahrt"
+      ],
+      "bpe_count": 3,
+      "wp_count": 7
+    },
+    "smartphone": {
+      "bpe": [
+        "s",
+        "mart",
+        "ph",
+        "one"
+      ],
+      "bpe_count": 4,
+      "wp_count": 5
+    },
+    "cloudcomputing": {
+      "bpe": [
+        "c",
+        "lou",
+        "d",
+        "com",
+        "put",
+        "ing"
+      ],
+      "bpe_count": 6,
+      "wp_count": 6
+    },
+    "maschinenlernalgorithmus": {
+      "bpe": [
+        "maschinen",
+        "lern",
+        "algorithmus"
+      ],
+      "bpe_count": 3,
+      "wp_count": 10
+    },
+    "tokenization": {
+      "bpe": [
+        "to",
+        "ken",
+        "iz",
+        "ation"
+      ],
+      "bpe_count": 4,
+      "wp_count": 6
+    },
+    "unbreakability": {
+      "bpe": [
+        "un",
+        "bre",
+        "ak",
+        "ab",
+        "il",
+        "ity"
+      ],
+      "bpe_count": 6,
+      "wp_count": 7
+    },
+    "unverarbeitbarkeit": {
+      "bpe": [
+        "un",
+        "ver",
+        "arbeit",
+        "barkeit"
+      ],
+      "bpe_count": 4,
+      "wp_count": 3
+    }
   }
 }

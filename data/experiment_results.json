@@ -1,97 +1,57 @@
 {
   "speed_sweep": {
     "5000": {
-      "bpe_naive": 22.838404178619385,
-      "bpe_fast": 0.6972513198852539,
-      "bpe_speedup": 32.75490992599036,
-      "wp_naive": 44.02546238899231,
-      "wp_fast": 0.2139420509338379,
-      "wp_speedup": 205.78218352504854
+      "bpe_naive": 31.75397038459778,
+      "bpe_fast": 2.2424089908599854,
+      "bpe_speedup": 14.160650672569693,
+      "wp_naive": 50.8265860080719,
+      "wp_fast": 0.22850561141967773,
+      "wp_speedup": 222.43036261688485
     },
     "10000": {
-      "bpe_naive": 39.92150402069092,
-      "bpe_fast": 1.122539758682251,
-      "bpe_speedup": 35.56355461970875,
-      "wp_naive": 92.62125611305237,
-      "wp_fast": 0.757338285446167,
-      "wp_speedup": 122.29839411655632
+      "bpe_naive": 56.58215951919556,
+      "bpe_fast": 1.363004446029663,
+      "bpe_speedup": 41.51282094788131,
+      "wp_naive": 107.66998147964478,
+      "wp_fast": 0.895061731338501,
+      "wp_speedup": 120.29335822304904
     },
     "20000": {
-      "bpe_naive": 81.78517508506775,
-      "bpe_fast": 3.945863962173462,
-      "bpe_speedup": 20.726810622234126,
-      "wp_naive": 206.56955552101135,
-      "wp_fast": 1.493884801864624,
-      "wp_speedup": 138.27676355176595
-    },
-    "30000": {
-      "bpe_naive": 137.39216923713684,
-      "bpe_fast": 4.567909479141235,
-      "bpe_speedup": 30.077690870302995,
-      "wp_naive": 316.67349314689636,
-      "wp_fast": 1.3912312984466553,
-      "wp_speedup": 227.62102426855282
-    },
-    "40000": {
-      "bpe_naive": 186.82031869888306,
-      "bpe_fast": 7.754897356033325,
-      "bpe_speedup": 24.09062430124062,
-      "wp_naive": 426.9116597175598,
-      "wp_fast": 1.2106471061706543,
-      "wp_speedup": 352.63096697757425
-    },
-    "50000": {
-      "bpe_naive": 241.83975172042847,
-      "bpe_fast": 13.648264169692993,
-      "bpe_speedup": 17.71945125867742,
-      "wp_naive": 545.3244495391846,
-      "wp_fast": 1.57295560836792,
-      "wp_speedup": 346.6877556099671
+      "bpe_naive": 118.744952917099,
+      "bpe_fast": 3.392946481704712,
+      "bpe_speedup": 34.99759090141563,
+      "wp_naive": 241.62898349761963,
+      "wp_fast": 2.434236526489258,
+      "wp_speedup": 99.26273838561839
     }
   },
   "threshold_study": {
     "0": {
-      "overlap": 0.569
+      "overlap": 0.575
     },
     "50000": {
-      "overlap": 0.864
+      "overlap": 0.871
     },
     "200000": {
-      "overlap": 0.945
+      "overlap": 0.941
     },
     "500000": {
-      "overlap": 0.945
+      "overlap": 0.95
     }
   },
-  "wp_threshold_used": 200000,
+  "wp_threshold_used": 0,
   "length_results": {
     "1000": {
       "bpe_avg": 10.6,
-      "wp_avg": 14.2
+      "wp_avg": 33.4
     },
     "5000": {
       "bpe_avg": 7.6,
-      "wp_avg": 14.2
+      "wp_avg": 28.0
     },
     "10000": {
       "bpe_avg": 7.0,
-      "wp_avg": 14.2
-    },
-    "20000": {
-      "bpe_avg": 6.4,
-      "wp_avg": 14.2
-    },
-    "30000": {
-      "bpe_avg": 6.2,
-      "wp_avg": 14.2
-    },
-    "40000": {
-      "bpe_avg": 6.2,
-      "wp_avg": 14.2
-    },
-    "50000": {
-      "bpe_avg": 6.2,
-      "wp_avg": 14.2
+      "wp_avg": 25.2
     }
   },
   "attention_cost": [
@@ -105,9 +65,9 @@
     {
       "vocab": 1000,
       "algo": "WP",
-      "tok_per_sent": 14.2,
-      "attention_cells": 201.6,
-      "relative_cost": 1.795
+      "tok_per_sent": 33.4,
+      "attention_cells": 1115.6,
+      "relative_cost": 9.928
     },
     {
       "vocab": 5000,
@@ -119,9 +79,9 @@
     {
       "vocab": 5000,
       "algo": "WP",
-      "tok_per_sent": 14.2,
-      "attention_cells": 201.6,
-      "relative_cost": 1.795
+      "tok_per_sent": 28.0,
+      "attention_cells": 784.0,
+      "relative_cost": 6.978
     },
     {
       "vocab": 10000,
@@ -133,82 +93,26 @@
     {
       "vocab": 10000,
       "algo": "WP",
-      "tok_per_sent": 14.2,
-      "attention_cells": 201.6,
-      "relative_cost": 1.795
-    },
-    {
-      "vocab": 20000,
-      "algo": "BPE",
-      "tok_per_sent": 6.4,
-      "attention_cells": 41.0,
-      "relative_cost": 0.365
-    },
-    {
-      "vocab": 20000,
-      "algo": "WP",
-      "tok_per_sent": 14.2,
-      "attention_cells": 201.6,
-      "relative_cost": 1.795
-    },
-    {
-      "vocab": 30000,
-      "algo": "BPE",
-      "tok_per_sent": 6.2,
-      "attention_cells": 38.4,
-      "relative_cost": 0.342
-    },
-    {
-      "vocab": 30000,
-      "algo": "WP",
-      "tok_per_sent": 14.2,
-      "attention_cells": 201.6,
-      "relative_cost": 1.795
-    },
-    {
-      "vocab": 40000,
-      "algo": "BPE",
-      "tok_per_sent": 6.2,
-      "attention_cells": 38.4,
-      "relative_cost": 0.342
-    },
-    {
-      "vocab": 40000,
-      "algo": "WP",
-      "tok_per_sent": 14.2,
-      "attention_cells": 201.6,
-      "relative_cost": 1.795
-    },
-    {
-      "vocab": 50000,
-      "algo": "BPE",
-      "tok_per_sent": 6.2,
-      "attention_cells": 38.4,
-      "relative_cost": 0.342
-    },
-    {
-      "vocab": 50000,
-      "algo": "WP",
-      "tok_per_sent": 14.2,
-      "attention_cells": 201.6,
-      "relative_cost": 1.795
+      "tok_per_sent": 25.2,
+      "attention_cells": 635.0,
+      "relative_cost": 5.652
     }
   ],
   "morphology": {
     "n": 20,
-    "bpe_exact": 2,
-    "wp_exact": 3,
-    "bpe_morph": 0.958,
-    "wp_morph": 0.542,
+    "bpe_exact": 4,
+    "wp_exact": 0,
+    "bpe_morph": 0.908,
+    "wp_morph": 0.267,
     "bpe_recon": 20,
     "wp_recon": 20
   },
   "inflection_family": {
     "n": 4,
-    "bpe_exact": 1,
+    "bpe_exact": 0,
     "wp_exact": 0,
-    "bpe_morph": 0.875,
-    "wp_morph": 0.542,
+    "bpe_morph": 0.542,
+    "wp_morph": 0.25,
     "bpe_recon": 4,
     "wp_recon": 4
   }

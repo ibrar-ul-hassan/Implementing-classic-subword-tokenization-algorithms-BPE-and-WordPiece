@@ -318,8 +318,13 @@ def train_fast(word_freq, vocab_size, verbose=True):
             pair          = (p0, p1)
             current_score = score(pair)
 
-            # Skip stale entries
+            # Stale entry: score changed because a shared token's global
+            # letter_freq shifted when an unrelated pair merged elsewhere.
+            # Re-push the corrected score instead of discarding it, or the
+            # pair is lost forever even when it's now the true best.
             if abs(-neg_s - current_score) > 1e-10:
+                if current_score > 0:
+                    heapq.heappush(heap, (-current_score, p0, p1))
                 continue
             if current_score <= 0:
                 continue

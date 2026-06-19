@@ -1,15 +1,49 @@
 """
 WordPiece Trainer and Tokenizer
-Reference: Schuster & Nakajima (2012), used in BERT
+Reference: Schuster & Nakajima (2012), used in BERT.
 
 Two implementations:
   train()      — naive version (simple, educational, slow)
-  train_fast() — optimized version (inverse index + score caching)
+  train_fast() — optimized version (inverse index + incremental scores)
 
+------------------------------------------------------------------
+SCORING FORMULA (Schuster & Nakajima 2012; HuggingFace LLM Course,
+ch. 6.6, https://huggingface.co/learn/llm-course/en/chapter6/6):
+
+    score(A, B) = freq(AB) / (freq(A) * freq(B))
+
+Verified correct against HuggingFace's canonical hug/pug/pun/bun/hugs
+example: our top-scoring first merge is ("##g","##s"), matching the
+reference. (Verification done during a Claude debugging session.)
+
+------------------------------------------------------------------
+min_pair_freq THRESHOLD (added after investigation):
+
+On a large real corpus (German Wikipedia), the raw score formula
+inflates the score of very rare letter pairs: a pair seen only a few
+thousand times whose two characters are individually rare can outrank
+genuinely useful pairs like ("d","##e"). This produced junk early
+merges such as "##wj" and "sowj".
+
+Mitigation: ignore any pair occurring fewer than `min_pair_freq`
+times when selecting the next merge. HuggingFace's WordPiece training
+documentation notes that the true Google algorithm was never
+open-sourced and that practical implementations rely on such
+frequency heuristics ("It may not be 100% accurate"). We expose the
+threshold as a TUNABLE HYPERPARAMETER and study its effect in
+03_experiments.ipynb rather than hard-coding a single value.
+
+Provenance of this change: diagnosed and tested empirically during a
+debugging session with Claude (Anthropic), cross-checked against the
+HuggingFace WordPiece course documentation cited above. Default is 0
+(no threshold) so behaviour is unchanged unless explicitly set.
+
+------------------------------------------------------------------
 Tie-breaking strategy:
   When multiple pairs share the same score, we break ties
-  lexicographically (alphabetical order of the pair).
-  This ensures naive and fast produce identical vocabularies.
+  lexicographically (alphabetical order of the pair). This makes
+  naive and fast deterministic and as close to identical as the
+  floating-point score formula allows.
 """
 from collections import defaultdict
 import heapq
@@ -106,10 +140,14 @@ def _get_vocab(word_freq):
     return vocab
 
 
-def _compute_pair_scores(vocab):
+def _compute_pair_scores(vocab, min_pair_freq=0):
     """
     Compute score(A,B) = freq(AB) / (freq(A) × freq(B))
     for all adjacent pairs.
+
+    min_pair_freq: pairs occurring fewer than this many times are
+    excluded from consideration (returns no score for them). This
+    suppresses rare-pair score inflation. Default 0 = no filtering.
     """
     letter_freqs = defaultdict(int)
     pair_freqs   = defaultdict(int)
@@ -127,6 +165,7 @@ def _compute_pair_scores(vocab):
     return {
         pair: freq / (letter_freqs[pair[0]] * letter_freqs[pair[1]])
         for pair, freq in pair_freqs.items()
+        if freq >= min_pair_freq
     }
 
 
@@ -150,15 +189,18 @@ def _merge_pair(best_pair, vocab):
     return new_vocab
 
 
-def train(word_freq, vocab_size, verbose=True):
+def train(word_freq, vocab_size, min_pair_freq=0, verbose=True):
     """
     NAIVE WordPiece Training.
 
     Bottleneck: recomputes ALL scores from scratch every step.
     Time complexity: O(V × N)
 
-    Tie-breaking: lexicographic on (score, pair[0], pair[1])
-    guarantees identical output to train_fast().
+    min_pair_freq: ignore pairs occurring fewer than this many times
+    when choosing the next merge (suppresses rare-pair score
+    inflation). Default 0 = no filtering. See module docstring.
+
+    Tie-breaking: lexicographic on (score, pair[0], pair[1]).
 
     Returns: vocab, wp_vocab, merge_log
     """
@@ -183,7 +225,7 @@ def train(word_freq, vocab_size, verbose=True):
               f"Target: {vocab_size} | Merges: {num_merges}")
 
     for step in range(num_merges):
-        scores = _compute_pair_scores(vocab)
+        scores = _compute_pair_scores(vocab, min_pair_freq=min_pair_freq)
         if not scores:
             break
 
@@ -228,7 +270,7 @@ def train(word_freq, vocab_size, verbose=True):
 # Uses inverse index + incremental score updates
 # ============================================================
 
-def train_fast(word_freq, vocab_size, verbose=True):
+def train_fast(word_freq, vocab_size, min_pair_freq=0, verbose=True):
     """
     FAST WordPiece Training.
 
@@ -241,10 +283,13 @@ def train_fast(word_freq, vocab_size, verbose=True):
     so pairs with equal scores are ordered alphabetically.
     This matches the naive implementation exactly.
 
+    min_pair_freq: ignore pairs below this frequency (see module
+    docstring / naive train()). Default 0 = no filtering.
+
     Note on score staleness:
     Scores depend on letter_freqs which change after every merge.
-    We handle this via lazy deletion — recompute score on pop
-    and skip if it no longer matches the heap entry.
+    A stale heap entry is RE-PUSHED with its refreshed score rather
+    than discarded (see the main loop), so a pair is never lost.
 
     Returns: vocab, wp_vocab, merge_log
     """
@@ -291,11 +336,14 @@ def train_fast(word_freq, vocab_size, verbose=True):
 
     # ── Step 3: Score function + initial heap ──
     def score(pair):
+        pf = pair_freqs.get(pair, 0)
+        if pf < min_pair_freq:        # frequency floor (see module docstring)
+            return 0.0
         pa = letter_freqs.get(pair[0], 0)
         pb = letter_freqs.get(pair[1], 0)
         if pa == 0 or pb == 0:
             return 0.0
-        return pair_freqs.get(pair, 0) / (pa * pb)
+        return pf / (pa * pb)
 
     # Entry: (-score, pair[0], pair[1])
     # Negated score → max-heap via Python's min-heap
@@ -318,10 +366,15 @@ def train_fast(word_freq, vocab_size, verbose=True):
             pair          = (p0, p1)
             current_score = score(pair)
 
-            # Stale entry: score changed because a shared token's global
-            # letter_freq shifted when an unrelated pair merged elsewhere.
-            # Re-push the corrected score instead of discarding it, or the
-            # pair is lost forever even when it's now the true best.
+            # Stale entry: its score changed because a SHARED token's
+            # global letter_freq shifted when an unrelated pair merged
+            # elsewhere. WordPiece's score has a global denominator
+            # (freq(A)*freq(B)), so merges elsewhere silently invalidate
+            # this pair's heap entry. We must RE-PUSH the refreshed score,
+            # not discard it, or the pair is lost forever even when it is
+            # now the true best candidate.
+            # (Bug found + fixed during a Claude debugging session;
+            #  verified by re-running naive vs fast at equal vocab_size.)
             if abs(-neg_s - current_score) > 1e-10:
                 if current_score > 0:
                     heapq.heappush(heap, (-current_score, p0, p1))

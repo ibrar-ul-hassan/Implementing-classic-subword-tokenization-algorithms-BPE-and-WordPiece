@@ -1,42 +1,42 @@
 {
   "speed_sweep": {
     "5000": {
-      "bpe_naive": 31.75397038459778,
-      "bpe_fast": 2.2424089908599854,
-      "bpe_speedup": 14.160650672569693,
-      "wp_naive": 50.8265860080719,
-      "wp_fast": 0.22850561141967773,
-      "wp_speedup": 222.43036261688485
+      "bpe_naive": 23.75809955596924,
+      "bpe_fast": 1.1100490093231201,
+      "bpe_speedup": 21.402748307893475,
+      "wp_naive": 51.4637176990509,
+      "wp_fast": 0.23302483558654785,
+      "wp_speedup": 220.85078429306193
     },
     "10000": {
-      "bpe_naive": 56.58215951919556,
-      "bpe_fast": 1.363004446029663,
-      "bpe_speedup": 41.51282094788131,
-      "wp_naive": 107.66998147964478,
-      "wp_fast": 0.895061731338501,
-      "wp_speedup": 120.29335822304904
+      "bpe_naive": 54.236502170562744,
+      "bpe_fast": 1.365135908126831,
+      "bpe_speedup": 39.72974547639236,
+      "wp_naive": 102.88109540939331,
+      "wp_fast": 0.38388919830322266,
+      "wp_speedup": 267.9968487368863
     },
     "20000": {
-      "bpe_naive": 118.744952917099,
-      "bpe_fast": 3.392946481704712,
-      "bpe_speedup": 34.99759090141563,
-      "wp_naive": 241.62898349761963,
-      "wp_fast": 2.434236526489258,
-      "wp_speedup": 99.26273838561839
+      "bpe_naive": 109.93461847305298,
+      "bpe_fast": 3.2617831230163574,
+      "bpe_speedup": 33.70384060709412,
+      "wp_naive": 235.52269673347473,
+      "wp_fast": 0.757157564163208,
+      "wp_speedup": 311.0616704909613
     }
   },
   "threshold_study": {
     "0": {
-      "overlap": 0.575
+      "overlap": 0.579
     },
     "50000": {
-      "overlap": 0.871
+      "overlap": 0.876
     },
     "200000": {
-      "overlap": 0.941
+      "overlap": 0.943
     },
     "500000": {
-      "overlap": 0.95
+      "overlap": 0.948
     }
   },
   "wp_threshold_used": 0,
@@ -47,7 +47,7 @@
     },
     "5000": {
       "bpe_avg": 7.6,
-      "wp_avg": 28.0
+      "wp_avg": 27.4
     },
     "10000": {
       "bpe_avg": 7.0,
@@ -79,9 +79,9 @@
     {
       "vocab": 5000,
       "algo": "WP",
-      "tok_per_sent": 28.0,
-      "attention_cells": 784.0,
-      "relative_cost": 6.978
+      "tok_per_sent": 27.4,
+      "attention_cells": 750.8,
+      "relative_cost": 6.682
     },
     {
       "vocab": 10000,
@@ -115,5 +115,23 @@
     "wp_morph": 0.25,
     "bpe_recon": 4,
     "wp_recon": 4
+  },
+  "morphology_three_way": {
+    "bpe": {
+      "exact": 4.0,
+      "morph": 0.908,
+      "vocab": 10000
+    },
+    "wp_no_threshold": {
+      "exact": 0.0,
+      "morph": 0.267,
+      "vocab": 10000
+    },
+    "wp_thresholded": {
+      "exact": 3.0,
+      "morph": 0.542,
+      "vocab": 969,
+      "threshold": 200000
+    }
   }
 }

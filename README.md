@@ -161,6 +161,8 @@ How well does each algorithm's split align with real German morphemes? Presented
 
 **BPE's frequency criterion aligns with German morphology almost for free** (0.91 recall). WordPiece needs the threshold to approach it (0.27 → 0.54) and only by accepting a saturated vocabulary.
 
+We also **cross-checked this against spaCy** (the automatic tool the brief suggested). Since spaCy gives lemmas, not morpheme splits, we used it for lemma-root consistency and a spaCy-expanded recall metric. It independently agreed: BPE kept the lemma root in 2/3 inflected families vs WordPiece's 0/3, and scored 0.62 recall vs WordPiece's 0.14. Two independent methods reaching the same conclusion is strong evidence the finding is real.
+
 An **inflection-family test** (the `trink-` paradigm: *trinke, trinkst, trinkt, getrunken*) is unflattering to **both** algorithms (BPE 0.54, WordPiece 0.25, neither with an exact match): neither cleanly isolates the shared root. This is an honest limit of subword tokenization — these methods are statistical, not linguistic.
 
 ---

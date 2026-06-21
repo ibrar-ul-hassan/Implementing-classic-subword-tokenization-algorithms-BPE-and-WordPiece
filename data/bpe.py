@@ -117,8 +117,6 @@ def train(word_freq, vocab_size, verbose=True):
 
         if not pair_counts:
             break
-
-        best_count = max(pair_counts.values())
     
         candidates = [p for p, c in pair_counts.items() if c == best_count]
         best_pair  = min(candidates)

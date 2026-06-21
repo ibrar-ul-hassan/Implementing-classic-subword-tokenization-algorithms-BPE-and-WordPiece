@@ -243,10 +243,7 @@ def train_fast(word_freq, vocab_size, verbose=True):
             inverse_index[pair].add(word_tokens)
 
     # ── Step 3: Build max-heap ──
-    # Entry: (-count, pair[0], pair[1])
-    # Negated count → max-heap via Python's min-heap
-    # pair[0], pair[1] → deterministic tie-breaking
-    heap = [ ]
+    heap = []
     for pair, count in pair_counts.items():
         heapq.heappush(heap, (-count, pair[0], pair[1]))
 

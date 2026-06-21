@@ -125,7 +125,7 @@ def train(word_freq, vocab_size, verbose=True):
 
         if best_count < 2:
             break
-
+        best_count = max(pair_counts.values())
         new_token = best_pair[0] + best_pair[1]
         merge_rules.append(best_pair)
         bpe_vocab.add(new_token)

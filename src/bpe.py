@@ -1,15 +1,5 @@
 """
 BPE (Byte Pair Encoding) Trainer and Tokenizer
-Reference: Sennrich et al. (2016)
-
-Two implementations:
-  train()      — naive version (simple, educational, slow)
-  train_fast() — optimized version (priority queue + inverse index)
-
-Tie-breaking strategy:
-  When multiple pairs share the same frequency, we break ties
-  lexicographically (alphabetical order of the pair).
-  This ensures naive and fast produce identical merge rules.
 """
 from collections import defaultdict
 import heapq
@@ -30,17 +20,7 @@ def get_vocab(word_freq):
 
 
 def tokenize_word(word, merge_rules):
-    """
-    Tokenize a single word by replaying merge rules in order.
 
-    Ambiguity resolution: rule ORDER resolves all ambiguity.
-    Earlier rules always take priority over later ones.
-
-    Example with rules [("u","g"), ("h","ug")]:
-        "hug" → ["h","u","g"]   (start)
-              → ["h","ug"]      (apply rule 1)
-              → ["hug"]         (apply rule 2)
-    """
     tokens = list(word)
     for (a, b) in merge_rules:
         new_tokens = []
@@ -58,7 +38,6 @@ def tokenize_word(word, merge_rules):
 
 
 def tokenize(text, merge_rules):
-    """Tokenize a full sentence word by word."""
     tokens = []
     for word in text.lower().split():
         tokens.extend(tokenize_word(word, merge_rules))
@@ -73,8 +52,8 @@ def save(merge_rules, bpe_vocab, merge_rules_path, vocab_path):
     with open(vocab_path, 'w', encoding='utf-8') as f:
         json.dump(sorted(list(bpe_vocab)),
                   f, ensure_ascii=False, indent=2)
-    print(f"✅ Saved {len(merge_rules):,} merge rules → {merge_rules_path}")
-    print(f"✅ Saved {len(bpe_vocab):,} tokens     → {vocab_path}")
+    print(f" Saved {len(merge_rules):,} merge rules → {merge_rules_path}")
+    print(f" Saved {len(bpe_vocab):,} tokens     → {vocab_path}")
 
 
 def load(merge_rules_path, vocab_path):
@@ -83,8 +62,8 @@ def load(merge_rules_path, vocab_path):
         merge_rules = [tuple(p) for p in json.load(f)]
     with open(vocab_path, 'r', encoding='utf-8') as f:
         bpe_vocab = set(json.load(f))
-    print(f"✅ Loaded {len(merge_rules):,} merge rules")
-    print(f"✅ Loaded {len(bpe_vocab):,} vocab tokens")
+    print(f" Loaded {len(merge_rules):,} merge rules")
+    print(f" Loaded {len(bpe_vocab):,} vocab tokens")
     return merge_rules, bpe_vocab
 
 
@@ -122,17 +101,6 @@ def _merge_pair(best_pair, vocab):
 
 
 def train(word_freq, vocab_size, verbose=True):
-    """
-    NAIVE BPE Training.
-
-    Bottleneck: rescans ALL pairs every merge step.
-    Time complexity: O(V × N)
-
-    Tie-breaking: lexicographic on (frequency, pair[0], pair[1])
-    guarantees identical output to train_fast().
-
-    Returns: vocab, merge_rules, bpe_vocab
-    """
     start_time = time.time()
     vocab = get_vocab(word_freq)
 
@@ -155,14 +123,6 @@ def train(word_freq, vocab_size, verbose=True):
         if not pair_counts:
             break
 
-        # ── Deterministic tie-breaking ──
-        # Primary:   highest frequency
-        # Secondary: alphabetical order of pair[0]
-        # Tertiary:  alphabetical order of pair[1]
-        # Find the highest count
-        best_count = max(pair_counts.values())
-        # Among ALL pairs with that count, pick lexicographically SMALLEST
-        # This matches the heap behaviour in train_fast()
         candidates = [p for p, c in pair_counts.items() if c == best_count]
         best_pair  = min(candidates)
 
@@ -183,7 +143,7 @@ def train(word_freq, vocab_size, verbose=True):
 
     elapsed = time.time() - start_time
     if verbose:
-        print(f"\n✅ NAIVE BPE done in {elapsed:.2f}s | "
+        print(f"\n NAIVE BPE done in {elapsed:.2f}s | "
               f"Vocab: {len(bpe_vocab):,} | "
               f"Rules: {len(merge_rules):,}")
 
@@ -196,23 +156,7 @@ def train(word_freq, vocab_size, verbose=True):
 # ============================================================
 
 def train_fast(word_freq, vocab_size, verbose=True):
-    """
-    FAST BPE Training using Priority Queue + Inverse Index.
-
-    Key optimizations:
-    1. PRIORITY QUEUE: best pair in O(log n) not O(n)
-    2. INVERSE INDEX: only update affected words after merge
-    3. LAZY DELETION: skip stale heap entries instead of removing
-
-    Tie-breaking: heap entries are (-count, pair[0], pair[1])
-    so pairs with equal frequency are ordered alphabetically.
-    This matches the naive implementation exactly.
-
-    Time complexity: O(M × W × L)
-    M = merges, W = avg words per pair, L = avg word length
-
-    Returns: vocab, merge_rules, bpe_vocab
-    """
+  
     start_time = time.time()
     vocab = get_vocab(word_freq)
 
@@ -333,7 +277,7 @@ def train_fast(word_freq, vocab_size, verbose=True):
 
     elapsed = time.time() - start_time
     if verbose:
-        print(f"\n✅ FAST BPE done in {elapsed:.2f}s | "
+        print(f"\n FAST BPE done in {elapsed:.2f}s | "
               f"Vocab: {len(bpe_vocab):,} | "
               f"Rules: {len(merge_rules):,}")
 

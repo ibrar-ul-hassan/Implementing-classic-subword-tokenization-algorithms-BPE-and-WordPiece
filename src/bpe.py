@@ -73,8 +73,8 @@ def save(merge_rules, bpe_vocab, merge_rules_path, vocab_path):
     with open(vocab_path, 'w', encoding='utf-8') as f:
         json.dump(sorted(list(bpe_vocab)),
                   f, ensure_ascii=False, indent=2)
-    print(f"✅ Saved {len(merge_rules):,} merge rules → {merge_rules_path}")
-    print(f"✅ Saved {len(bpe_vocab):,} tokens     → {vocab_path}")
+    print(f" Saved {len(merge_rules):,} merge rules → {merge_rules_path}")
+    print(f" Saved {len(bpe_vocab):,} tokens     → {vocab_path}")
 
 
 def load(merge_rules_path, vocab_path):
@@ -83,8 +83,8 @@ def load(merge_rules_path, vocab_path):
         merge_rules = [tuple(p) for p in json.load(f)]
     with open(vocab_path, 'r', encoding='utf-8') as f:
         bpe_vocab = set(json.load(f))
-    print(f"✅ Loaded {len(merge_rules):,} merge rules")
-    print(f"✅ Loaded {len(bpe_vocab):,} vocab tokens")
+    print(f" Loaded {len(merge_rules):,} merge rules")
+    print(f" Loaded {len(bpe_vocab):,} vocab tokens")
     return merge_rules, bpe_vocab
 
 
@@ -183,7 +183,7 @@ def train(word_freq, vocab_size, verbose=True):
 
     elapsed = time.time() - start_time
     if verbose:
-        print(f"\n✅ NAIVE BPE done in {elapsed:.2f}s | "
+        print(f"\n NAIVE BPE done in {elapsed:.2f}s | "
               f"Vocab: {len(bpe_vocab):,} | "
               f"Rules: {len(merge_rules):,}")
 
@@ -336,7 +336,7 @@ def train_fast(word_freq, vocab_size, verbose=True):
 
     elapsed = time.time() - start_time
     if verbose:
-        print(f"\n✅ FAST BPE done in {elapsed:.2f}s | "
+        print(f"\n FAST BPE done in {elapsed:.2f}s | "
               f"Vocab: {len(bpe_vocab):,} | "
               f"Rules: {len(merge_rules):,}")
 

@@ -1,6 +1,4 @@
-"""
-BPE (Byte Pair Encoding) Trainer and Tokenizer
-"""
+
 from collections import defaultdict
 import heapq
 import json
@@ -12,10 +10,7 @@ import time
 # ============================================================
 
 def get_vocab(word_freq):
-    """
-    Convert word frequency dict into character-split representation.
-    Example: "hug": 10  →  ("h","u","g"): 10
-    """
+ 
     return {tuple(word): freq for word, freq in word_freq.items()}
 
 

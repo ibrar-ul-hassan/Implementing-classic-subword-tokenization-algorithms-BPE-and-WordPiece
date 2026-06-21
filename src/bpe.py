@@ -184,6 +184,7 @@ def train_fast(word_freq, vocab_size, verbose=True):
             inverse_index[pair].add(word_tokens)
 
     # ── Step 3: Build max-heap ──
+    heap = []
     for pair, count in pair_counts.items():
         heapq.heappush(heap, (-count, pair[0], pair[1]))
 
